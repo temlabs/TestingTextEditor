@@ -28,9 +28,11 @@ export default function Editor(): JSX.Element {
     }
   };
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleKeyDown(e: React.KeyboardEvent, currentBlock: BlockNode) {
     if (e.key === "Enter") {
       e.preventDefault();
+    } else if (e.key === "Backspace") {
+      deleteBlock(e, currentBlock);
     } else if (e.ctrlKey && e.key === "b") {
       return;
     }
@@ -40,7 +42,31 @@ export default function Editor(): JSX.Element {
     if (e.key === "Enter") {
       createNewBlock(e, currentBlock);
     } else {
-      // update the object tree
+      const textInCurrentBlock = (e.currentTarget as HTMLDivElement).innerText;
+      const newState = [...editorText];
+      newState[currentBlock.displayIndex].children = textInCurrentBlock;
+    }
+  }
+
+  function deleteBlock(e: React.KeyboardEvent, currentBlock: BlockNode) {
+    const cursorAtBeginningOfBlock =
+      window.getSelection()?.getRangeAt(0).startOffset === 0;
+    if (cursorAtBeginningOfBlock && currentBlock.displayIndex > 0) {
+      const currentBlockIndex = currentBlock.displayIndex;
+
+      const newState = [...editorText];
+
+      // decrease the display indexes for all blocks after the block to be deleted
+      newState.forEach((b) =>
+        b.displayIndex > currentBlockIndex
+          ? (b.displayIndex -= 1)
+          : b.displayIndex
+      );
+
+      newState.splice(currentBlockIndex, 1);
+      setFocusId(currentBlockIndex - 1);
+
+      setEditorText(newState);
     }
   }
 
@@ -67,7 +93,7 @@ export default function Editor(): JSX.Element {
       displayIndex: newBlockIndex,
     };
 
-    // increase the display indexes for all blocks after the new one
+    // increase the display indexes for all blocks after the block to be created
     newState.forEach((b) =>
       b.displayIndex > currentBlockIndex
         ? (b.displayIndex += 1)
@@ -84,11 +110,13 @@ export default function Editor(): JSX.Element {
     if (window.getSelection()?.isCollapsed === false) {
       // if a valid selection exists
       setSelection(window.getSelection()); // save the selection
+    } else {
+      setSelectionModeOn(false);
     }
   }
 
   function mouseDownHandler() {
-    if (selection === null && window.getSelection()?.isCollapsed === true) {
+    if (selection === null || window.getSelection()?.isCollapsed === true) {
       // there is no existing selection, so allow selecting
       setSelectionModeOn(true);
     } else {
@@ -99,7 +127,17 @@ export default function Editor(): JSX.Element {
   }
 
   useEffect(() => {
-    blockRef.current?.focus();
+    if (blockRef.current !== null) {
+      const endPosition = blockRef.current.innerText.length - 1;
+      if (endPosition > 0) {
+        const newRange = document.createRange();
+        window.getSelection()?.removeAllRanges();
+        newRange.selectNodeContents(blockRef.current);
+        newRange.collapse(false);
+        window.getSelection()?.addRange(newRange);
+      }
+      blockRef.current?.focus();
+    }
   }, [focusId]);
 
   useEffect(() => {
@@ -116,7 +154,7 @@ export default function Editor(): JSX.Element {
           ref={focusId === t.displayIndex ? blockRef : undefined}
           className="editor"
           key={t.id}
-          onKeyDown={(e) => handleKeyDown(e)}
+          onKeyDown={(e) => handleKeyDown(e, t)}
           onKeyUp={(e) => handleKeyUp(e, t)}
           onMouseDown={() => mouseDownHandler()}
           onMouseUp={() => mouseUpHandler()}
