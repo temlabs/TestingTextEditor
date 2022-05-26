@@ -56,13 +56,13 @@ export default function Editor(): JSX.Element {
 
     function mouseUpHandler() {
 
-        if (window.getSelection()?.isCollapsed == false) {
-            setSelection(window.getSelection())
+        if (window.getSelection()?.isCollapsed == false) {// if a valid selection exists
+            setSelection(window.getSelection()) // save the selection
         }
     }
 
     function mouseDownHandler() {
-        if (selection === null) { // there is no selection, so allow selecting
+        if (selection === null && window.getSelection()?.isCollapsed == false) { // there is no existing selection, so allow selecting
             console.log("You're allowed to select")
             setSelectionModeOn(true)
         } else { //there is a selection, disallow selecting
