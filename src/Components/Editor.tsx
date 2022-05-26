@@ -1,17 +1,16 @@
 import React, { useEffect, useRef, useState } from "react"
-
+import shortId from "shortid"
 
 interface BlockNode {
-    id: number;
+    id: string;
+    displayIndex: number;
     type: string;
-    startPos: number;
-    index: number;
-    children: BlockNode[]
+    children: string;
 }
 
 export default function Editor(): JSX.Element {
 
-    const [editorText, setEditorText] = useState([{ id: 0, type: "paragraph", children: "" }])
+    const [editorText, setEditorText] = useState<BlockNode[]>([{ id: shortId.generate(), displayIndex: 0, type: "paragraph", children: "" }])
     const [focusId, setFocusId] = useState(0)
     const [selectionModeOn, setSelectionModeOn] = useState(false)
     const [selection, setSelection] = useState<Selection | null>(null)
@@ -36,24 +35,39 @@ export default function Editor(): JSX.Element {
 
     }
 
-    function handleKeyUp(e: React.KeyboardEvent, objectId: number) {
+    function handleKeyUp(e: React.KeyboardEvent, currentBlock: BlockNode) {
         if (e.key === 'Enter') {
-            createNewBlock(e, objectId)
+            createNewBlock(e, currentBlock)
+        } else {
+            // update the object tree 
         }
     }
 
 
-    function createNewBlock(e: React.KeyboardEvent, objectId: number) {
+    function createNewBlock(e: React.KeyboardEvent, currentBlock: BlockNode) {
         e.preventDefault()
+
         const cursorPosition = window.getSelection()?.getRangeAt(0).startOffset
-        const newState = [...editorText]
+
         const textInCurrentBlock = (e.currentTarget as HTMLDivElement).innerText
-        newState[objectId].children = textInCurrentBlock.slice(0, cursorPosition) // keep before cursor in current block
+        const currentBlockIndex = currentBlock.displayIndex
+
+        const newState = [...editorText]
+        newState[currentBlockIndex].children = textInCurrentBlock.slice(0, cursorPosition) // keep before cursor in current block
         const textToCarryOver = textInCurrentBlock.slice(cursorPosition) // keep text after cursor in new block
-        newState.push({ id: objectId + 1, type: "paragraph", children: textToCarryOver })
+
+        const newBlockIndex = currentBlockIndex + 1
+        const newBlock: BlockNode = { id: shortId.generate(), type: "paragraph", children: textToCarryOver, displayIndex: newBlockIndex }
+
+        // increase the display indexes for all blocks after the new one
+        newState.forEach(b =>
+            b.displayIndex > currentBlockIndex ? b.displayIndex += 1 : b.displayIndex
+        )
+
+        newState.splice(newBlockIndex, 0, newBlock)
 
         setEditorText(newState)
-        setFocusId(objectId + 1)
+        setFocusId(newBlockIndex)
 
     }
 
@@ -90,10 +104,10 @@ export default function Editor(): JSX.Element {
             {editorText.map((t) =>
                 <div
                     tabIndex={1}
-                    ref={focusId === t.id ? blockRef : undefined}
+                    ref={focusId === t.displayIndex ? blockRef : undefined}
                     className="editor" key={t.id}
                     onKeyDown={e => handleKeyDown(e)}
-                    onKeyUp={(e) => handleKeyUp(e, t.id)}
+                    onKeyUp={(e) => handleKeyUp(e, t)}
                     onMouseDown={() => mouseDownHandler()}
                     onMouseUp={(() => mouseUpHandler())}
                     contentEditable={!selectionModeOn}
