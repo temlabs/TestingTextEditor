@@ -45,9 +45,12 @@ export default function Editor(): JSX.Element {
 
     function createNewBlock(e: React.KeyboardEvent, objectId: number) {
         e.preventDefault()
+        const cursorPosition = window.getSelection()?.getRangeAt(0).startOffset
         const newState = [...editorText]
-        newState[objectId].children = (e.currentTarget as HTMLDivElement).innerText
-        newState.push({ id: objectId + 1, type: "paragraph", children: "" })
+        const textInCurrentBlock = (e.currentTarget as HTMLDivElement).innerText
+        newState[objectId].children = textInCurrentBlock.slice(0, cursorPosition) // keep before cursor in current block
+        const textToCarryOver = textInCurrentBlock.slice(cursorPosition) // keep text after cursor in new block
+        newState.push({ id: objectId + 1, type: "paragraph", children: textToCarryOver })
 
         setEditorText(newState)
         setFocusId(objectId + 1)
