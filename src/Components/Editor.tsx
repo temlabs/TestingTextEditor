@@ -40,6 +40,22 @@ export default function Editor(props: BlockNode): JSX.Element {
     } else if (e.key === "Backspace") {
       deleteBlock(e, currentBlock);
     } else if (e.ctrlKey && e.key === "b") {
+      console.log("BOLD");
+      //get the offset of the selection
+      //remove selected text from the block value
+      //check if children are contained in that value
+      //if so, pull them out also
+      //create a new node object
+      //add it to the list of children
+      //adjust the offsets of the children so that they are relevant to the new node object we created
+      //add this new node object as a child
+      if (window.getSelection()?.isCollapsed === false) {
+        // const selectionOffset = selection?.getRangeAt(0).startOffset
+        // const selectionValue = selection?.toString()
+        // const blockId = selection?.getRangeAt(0)
+        // const element: HTMLElement = selection?.anchorNode?.parentNode as HTMLElement
+        // const newBlock = [...editorText]
+      }
       return;
     }
   }
@@ -143,7 +159,6 @@ export default function Editor(props: BlockNode): JSX.Element {
   // focus on end of text or beginning
   useEffect(() => {
     if (blockRef.current !== null) {
-      console.log({ focusId, previousFocusId });
       const endPosition = blockRef.current.innerText.length - 1;
       if (endPosition > 0 && !(focusId - previousFocusId.current === 1)) {
         moveCursorToEnd(blockRef.current);

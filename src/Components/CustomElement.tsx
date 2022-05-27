@@ -26,14 +26,15 @@ const CustomElement = React.forwardRef((props: CustomElementProps, ref) =>
   React.createElement(
     elements[props.type],
     {
+      id: props.nodeObject.id,
       key: props.nodeObject.id,
       ref: ref,
       onKeyUp: (e: React.KeyboardEvent) =>
         props.handleKeyUpFn(e, props.nodeObject),
       onKeyDown: (e: React.KeyboardEvent) =>
         props.handleKeyDownFn(e, props.nodeObject),
-      onMouseDown: () => props.mouseDownHandler,
-      onMouseUp: () => props.mouseUpHandler,
+      onMouseDown: () => props.mouseDownHandler(),
+      onMouseUp: () => props.mouseUpHandler(),
       contentEditable: !props.selectionModeOn,
       suppressContentEditableWarning: true,
       className: "editor",
