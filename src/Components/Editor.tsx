@@ -7,10 +7,11 @@ export interface BlockNode {
   displayIndex: number;
   type: ElementTag;
   value: string;
+  offsetToParent?: number;
   descendants?: BlockNode[];
 }
 
-type ElementTag = "paragraph" | "bold";
+export type ElementTag = "paragraph" | "bold";
 
 export default function Editor(props: BlockNode): JSX.Element {
   const [editorText, setEditorText] = useState<BlockNode[]>([
@@ -34,29 +35,45 @@ export default function Editor(props: BlockNode): JSX.Element {
     }
   };
 
+  document.onselectionchange = () => {
+    setSelection(window.getSelection());
+  };
+
   function handleKeyDown(e: React.KeyboardEvent, currentBlock: BlockNode) {
     if (e.key === "Enter") {
       e.preventDefault();
     } else if (e.key === "Backspace") {
       deleteBlock(e, currentBlock);
     } else if (e.ctrlKey && e.key === "b") {
-      console.log("BOLD");
-      //get the offset of the selection
-      //remove selected text from the block value
-      //check if children are contained in that value
-      //if so, pull them out also
-      //create a new node object
-      //add it to the list of children
-      //adjust the offsets of the children so that they are relevant to the new node object we created
-      //add this new node object as a child
-      if (window.getSelection()?.isCollapsed === false) {
-        // const selectionOffset = selection?.getRangeAt(0).startOffset
-        // const selectionValue = selection?.toString()
-        // const blockId = selection?.getRangeAt(0)
-        // const element: HTMLElement = selection?.anchorNode?.parentNode as HTMLElement
-        // const newBlock = [...editorText]
+      if (selection && selection.isCollapsed === false) {
+        const selectionOffset = selection.getRangeAt(0).startOffset;
+        const selectionValue = selection?.toString();
+        const selectionLength = selectionValue?.length;
+        const blockElement: HTMLElement = selection?.anchorNode
+          ?.parentNode as HTMLElement;
+        const blockId = blockElement.getAttribute("id");
+        const newBlocks = [...editorText];
+        const blockIndex = newBlocks.findIndex((b) => b.id === blockId);
+        const currentValue = newBlocks[blockIndex].value;
+        const newValue = `${currentValue.substring(
+          0,
+          selectionOffset
+        )}${currentValue.substring(selectionOffset + selectionLength)}`;
+        const updatedBlock = { ...newBlocks[blockIndex] };
+        updatedBlock.value = newValue;
+        const boldBlock: BlockNode = {
+          id: shortId.generate(),
+          displayIndex: 0,
+          type: "bold",
+          value: selectionValue,
+          offsetToParent: selectionOffset,
+        };
+        updatedBlock.descendants = [boldBlock];
+
+        newBlocks.splice(blockIndex, 1, updatedBlock);
+        setEditorText(newBlocks);
+        return;
       }
-      return;
     }
   }
 
@@ -162,7 +179,6 @@ export default function Editor(props: BlockNode): JSX.Element {
       const endPosition = blockRef.current.innerText.length - 1;
       if (endPosition > 0 && !(focusId - previousFocusId.current === 1)) {
         moveCursorToEnd(blockRef.current);
-        console.log(newBlockCreated);
       }
       blockRef.current?.focus();
     }
@@ -173,7 +189,7 @@ export default function Editor(props: BlockNode): JSX.Element {
     if (selection) {
       selection.addRange(selection.getRangeAt(0));
     }
-  }, [selectionModeOn, selection]);
+  }, [selectionModeOn, selection, editorText]);
 
   return (
     <>
@@ -188,6 +204,7 @@ export default function Editor(props: BlockNode): JSX.Element {
           mouseUpHandler={mouseUpHandler}
           nodeObject={t}
           selectionModeOn={selectionModeOn}
+          descendant={false}
         >
           {t.value}
         </CustomElement>
