@@ -27,6 +27,7 @@ export default function Editor(props: BlockNode): JSX.Element {
     const [selectionModeOn, setSelectionModeOn] = useState(false);
     const [selection, setSelection] = useState<Selection | null>(null);
     const [newBlockCreated, setNewBlockCreated] = useState<boolean>(false);
+    const [cursorPosition, setCursorPosition] = useState({ block: editorText[0], offset: 0 });
     const blockRef = useRef<HTMLElement>(null);
 
     document.onkeydown = (e) => {
@@ -39,18 +40,27 @@ export default function Editor(props: BlockNode): JSX.Element {
         setSelection(window.getSelection());
     };
 
-    function setCursorPosition(block: BlockNode, offset?: number): void {
-        // defaults to start, but offset of -1 goes to end of block
+    function moveCursor(block: BlockNode, offset = 0): void {
+        // if no offset specified, it defaults to start. offset of -1 and it goes to end of block
         const toStart = offset === -1 ? false : true
         const blockElement = document.getElementById(block.id)
         if (blockElement) {
             window.getSelection()?.removeAllRanges()
             const newRange = document.createRange();
-            newRange.selectNodeContents(blockElement.childNodes[0]);
-            offset ? newRange.setStart(blockElement.childNodes[0], offset) : newRange.setStart(blockElement.childNodes[0], 0)
+            const emptyBlock = blockElement.childNodes.length === 0
+            const nodeTree = emptyBlock ? blockElement : blockElement.childNodes[0]
+            newRange.selectNodeContents(nodeTree);
+            if (offset !== -1) {
+                if (emptyBlock) {
+                    newRange.setStart(nodeTree, 0)
+                } else {
+                    console.log("it knows it's not empty")
+                    console.log({ nodeTree, offset })
+                    newRange.setStart(nodeTree, offset)
+                }
+            }
             newRange.collapse(toStart);
             window.getSelection()?.addRange(newRange)
-            console.log(window.getSelection()?.getRangeAt(0))
         }
     }
 
@@ -87,6 +97,7 @@ export default function Editor(props: BlockNode): JSX.Element {
 
                 newBlocks.splice(blockIndex, 1, updatedBlock);
                 setEditorText(newBlocks);
+                setCursorPosition({ block: boldBlock, offset: selectionLength })
             }
         }
     }
@@ -121,6 +132,8 @@ export default function Editor(props: BlockNode): JSX.Element {
             previousFocusId.current = focusId;
             setFocusId(currentBlockIndex - 1);
             setEditorText(newState);
+            const previousBlock = editorText[currentBlockIndex - 1]
+            setCursorPosition({ block: previousBlock, offset: -1 })
         }
     }
 
@@ -158,6 +171,7 @@ export default function Editor(props: BlockNode): JSX.Element {
         previousFocusId.current = focusId;
         setFocusId(newBlockIndex);
         setEditorText(newState);
+        setCursorPosition({ block: newBlock, offset: 0 })
     }
 
     function mouseUpHandler() {
@@ -188,23 +202,27 @@ export default function Editor(props: BlockNode): JSX.Element {
         window.getSelection()?.addRange(newRange);
     }
 
-    // focus on end of text or beginning
     useEffect(() => {
-        if (blockRef.current !== null) {
-            const endPosition = blockRef.current.innerText.length - 1;
-            if (endPosition > 0 && !(focusId - previousFocusId.current === 1)) {
-                moveCursorToEnd(blockRef.current);
-            }
-            blockRef.current?.focus();
-        }
-    }, [focusId, editorText, newBlockCreated]);
+        moveCursor(cursorPosition.block, cursorPosition.offset)
+    }, [cursorPosition])
 
-    //preserve selection when element is contenteditable again
-    useEffect(() => {
-        if (selection) {
-            selection.addRange(selection.getRangeAt(0));
-        }
-    }, [selectionModeOn, selection]);
+    // // focus on end of text or beginning
+    // useEffect(() => {
+    //     if (blockRef.current !== null) {
+    //         const endPosition = blockRef.current.innerText.length - 1;
+    //         if (endPosition > 0 && !(focusId - previousFocusId.current === 1)) {
+    //             moveCursorToEnd(blockRef.current);
+    //         }
+    //         blockRef.current?.focus();
+    //     }
+    // }, [focusId, editorText, newBlockCreated]);
+
+    // //preserve selection when element is contenteditable again
+    // useEffect(() => {
+    //     if (selection) {
+    //         selection.addRange(selection.getRangeAt(0));
+    //     }
+    // }, [selectionModeOn, selection]);
 
     return (
         <>
