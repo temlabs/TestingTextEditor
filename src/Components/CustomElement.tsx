@@ -23,7 +23,7 @@ interface CustomElementProps {
   children: string;
 }
 
-function flattenParentAndChildNodes(
+function mergeValueAndDescendants(
   props: CustomElementProps
 ): (string | JSX.Element)[] {
   //creates an array containing the value of the parent, along with the children, separated at the given offsets
@@ -34,6 +34,7 @@ function flattenParentAndChildNodes(
     for (const descendant of props.nodeObject.descendants) {
       const descendantComponent: JSX.Element = (
         <CustomElement
+          ref={descendant.ref}
           key={descendant.id}
           type={descendant.type}
           handleKeyDownFn={props.handleKeyDownFn}
@@ -73,13 +74,13 @@ const CustomElement = React.forwardRef((props: CustomElementProps, ref) => {
     props.nodeObject.descendants.length > 0;
   if (nodeHasDescendants) {
     const renderArray: (string | JSX.Element)[] =
-      flattenParentAndChildNodes(props);
+      mergeValueAndDescendants(props);
     return React.createElement(
       elements[props.type],
       {
         id: props.nodeObject.id,
         key: props.nodeObject.id,
-        ref: props.descendant === true || !ref ? undefined : ref,
+        ref: ref,
         onKeyUp: (e: React.KeyboardEvent) =>
           props.handleKeyUpFn(e, props.nodeObject),
         onKeyDown: (e: React.KeyboardEvent) =>
@@ -99,7 +100,7 @@ const CustomElement = React.forwardRef((props: CustomElementProps, ref) => {
       {
         id: props.nodeObject.id,
         key: props.nodeObject.id,
-        ref: props.descendant === true || !ref ? undefined : ref,
+        ref: ref,
         onKeyUp: (e: React.KeyboardEvent) =>
           props.handleKeyUpFn(e, props.nodeObject),
         onKeyDown: (e: React.KeyboardEvent) =>

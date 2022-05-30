@@ -3,6 +3,7 @@ import shortId from "shortid";
 import CustomElement from "./CustomElement";
 
 export interface BlockNode {
+    ref: React.RefObject<HTMLElement>;
     id: string;
     displayIndex: number;
     type: ElementTag;
@@ -13,9 +14,10 @@ export interface BlockNode {
 
 export type ElementTag = "paragraph" | "bold";
 
-export default function Editor(props: BlockNode): JSX.Element {
+export default function Editor(): JSX.Element {
     const [editorText, setEditorText] = useState<BlockNode[]>([
         {
+            ref: React.createRef(),
             id: shortId.generate(),
             displayIndex: 0,
             type: "paragraph",
@@ -43,7 +45,7 @@ export default function Editor(props: BlockNode): JSX.Element {
     function moveCursor(block: BlockNode, offset = 0): void {
         // if no offset specified, it defaults to start. offset of -1 and it goes to end of block
         const toStart = offset === -1 ? false : true
-        const blockElement = document.getElementById(block.id)
+        const blockElement = block.ref.current
         if (blockElement) {
             window.getSelection()?.removeAllRanges()
             const newRange = document.createRange();
@@ -87,6 +89,7 @@ export default function Editor(props: BlockNode): JSX.Element {
                 const updatedBlock = { ...newBlocks[blockIndex] };
                 updatedBlock.value = newValue;
                 const boldBlock: BlockNode = {
+                    ref: React.createRef(),
                     id: shortId.generate(),
                     displayIndex: 0,
                     type: "bold",
@@ -109,6 +112,9 @@ export default function Editor(props: BlockNode): JSX.Element {
             const textInCurrentBlock = (e.currentTarget as HTMLElement).innerText;
             const newState = [...editorText];
             newState[currentBlock.displayIndex].value = textInCurrentBlock;
+            // line above is wrong, because current block might be nested so won't necessarily be an index of the main array.
+            // a searching algo will be needed- could use a stack or binary tree search or something to match the id
+            // let it be that the function takes an id, and a value to set that block id to, then once found, you can set it in the function.
             setEditorText(editorText)
         }
     }
@@ -153,6 +159,7 @@ export default function Editor(props: BlockNode): JSX.Element {
 
         const newBlockIndex = currentBlockIndex + 1;
         const newBlock: BlockNode = {
+            ref: React.createRef(),
             id: shortId.generate(),
             type: "paragraph",
             value: textToCarryOver,
@@ -228,7 +235,7 @@ export default function Editor(props: BlockNode): JSX.Element {
         <>
             {editorText.map((t) => (
                 <CustomElement
-                    ref={focusId === t.displayIndex ? blockRef : undefined}
+                    ref={t.ref}
                     key={t.id}
                     type={t.type}
                     handleKeyDownFn={handleKeyDown}
