@@ -10,27 +10,31 @@ export interface BlockNode {
     value: string;
     offsetToParent?: number;
     descendants?: BlockNode[];
+    idBreadcrumb: string[];
 }
 
 export type ElementTag = "paragraph" | "bold";
 
 export default function Editor(): JSX.Element {
+    const initialId = shortId.generate();
     const [editorText, setEditorText] = useState<BlockNode[]>([
         {
             ref: React.createRef(),
-            id: shortId.generate(),
+            id: initialId,
             displayIndex: 0,
             type: "paragraph",
             value: "",
+            idBreadcrumb: [initialId],
         },
     ]);
     const [focusId, setFocusId] = useState(0);
     const previousFocusId = useRef<number>(0);
     const [selectionModeOn, setSelectionModeOn] = useState(false);
     const [selection, setSelection] = useState<Selection | null>(null);
-    const [newBlockCreated, setNewBlockCreated] = useState<boolean>(false);
-    const [cursorPosition, setCursorPosition] = useState({ block: editorText[0], offset: 0 });
-    const blockRef = useRef<HTMLElement>(null);
+    const [cursorPosition, setCursorPosition] = useState({
+        block: editorText[0],
+        offset: 0,
+    });
 
     document.onkeydown = (e) => {
         if (e.ctrlKey && e.key === "b") {
@@ -44,25 +48,25 @@ export default function Editor(): JSX.Element {
 
     function moveCursor(block: BlockNode, offset = 0): void {
         // if no offset specified, it defaults to start. offset of -1 and it goes to end of block
-        const toStart = offset === -1 ? false : true
-        const blockElement = block.ref.current
+        const toStart = offset === -1 ? false : true;
+        const blockElement = block.ref.current;
         if (blockElement) {
-            window.getSelection()?.removeAllRanges()
+            window.getSelection()?.removeAllRanges();
             const newRange = document.createRange();
-            const emptyBlock = blockElement.childNodes.length === 0
-            const nodeTree = emptyBlock ? blockElement : blockElement.childNodes[0]
+            const emptyBlock = blockElement.childNodes.length === 0;
+            const nodeTree = emptyBlock ? blockElement : blockElement.childNodes[0];
             newRange.selectNodeContents(nodeTree);
             if (offset !== -1) {
                 if (emptyBlock) {
-                    newRange.setStart(nodeTree, 0)
+                    newRange.setStart(nodeTree, 0);
                 } else {
-                    console.log("it knows it's not empty")
-                    console.log({ nodeTree, offset })
-                    newRange.setStart(nodeTree, offset)
+                    console.log("it knows it's not empty");
+                    console.log({ nodeTree, offset });
+                    newRange.setStart(nodeTree, offset);
                 }
             }
             newRange.collapse(toStart);
-            window.getSelection()?.addRange(newRange)
+            window.getSelection()?.addRange(newRange);
         }
     }
 
@@ -88,19 +92,21 @@ export default function Editor(): JSX.Element {
                 )}${currentValue.substring(selectionOffset + selectionLength)}`;
                 const updatedBlock = { ...newBlocks[blockIndex] };
                 updatedBlock.value = newValue;
+                const id = shortId.generate();
                 const boldBlock: BlockNode = {
                     ref: React.createRef(),
-                    id: shortId.generate(),
+                    id: id,
                     displayIndex: 0,
                     type: "bold",
                     value: selectionValue,
                     offsetToParent: selectionOffset,
+                    idBreadcrumb: [...currentBlock.idBreadcrumb, id],
                 };
                 updatedBlock.descendants = [boldBlock];
 
                 newBlocks.splice(blockIndex, 1, updatedBlock);
                 setEditorText(newBlocks);
-                setCursorPosition({ block: boldBlock, offset: selectionLength })
+                setCursorPosition({ block: boldBlock, offset: selectionLength });
             }
         }
     }
@@ -115,7 +121,7 @@ export default function Editor(): JSX.Element {
             // line above is wrong, because current block might be nested so won't necessarily be an index of the main array.
             // a searching algo will be needed- could use a stack or binary tree search or something to match the id
             // let it be that the function takes an id, and a value to set that block id to, then once found, you can set it in the function.
-            setEditorText(editorText)
+            setEditorText(editorText);
         }
     }
 
@@ -138,8 +144,8 @@ export default function Editor(): JSX.Element {
             previousFocusId.current = focusId;
             setFocusId(currentBlockIndex - 1);
             setEditorText(newState);
-            const previousBlock = editorText[currentBlockIndex - 1]
-            setCursorPosition({ block: previousBlock, offset: -1 })
+            const previousBlock = editorText[currentBlockIndex - 1];
+            setCursorPosition({ block: previousBlock, offset: -1 });
         }
     }
 
@@ -158,12 +164,14 @@ export default function Editor(): JSX.Element {
         const textToCarryOver = textInCurrentBlock.slice(cursorPosition); // keep text after cursor in new block
 
         const newBlockIndex = currentBlockIndex + 1;
+        const id = shortId.generate();
         const newBlock: BlockNode = {
             ref: React.createRef(),
-            id: shortId.generate(),
+            id: id,
             type: "paragraph",
             value: textToCarryOver,
             displayIndex: newBlockIndex,
+            idBreadcrumb: [id],
         };
 
         // increase the display indexes for all blocks after the block to be created
@@ -174,11 +182,10 @@ export default function Editor(): JSX.Element {
         );
 
         newState.splice(newBlockIndex, 0, newBlock);
-        setNewBlockCreated(true);
         previousFocusId.current = focusId;
         setFocusId(newBlockIndex);
         setEditorText(newState);
-        setCursorPosition({ block: newBlock, offset: 0 })
+        setCursorPosition({ block: newBlock, offset: 0 });
     }
 
     function mouseUpHandler() {
@@ -201,35 +208,11 @@ export default function Editor(): JSX.Element {
         }
     }
 
-    function moveCursorToEnd(element: HTMLElement) {
-        const newRange = document.createRange();
-        window.getSelection()?.removeAllRanges();
-        newRange.selectNodeContents(element);
-        newRange.collapse(false);
-        window.getSelection()?.addRange(newRange);
-    }
-
     useEffect(() => {
-        moveCursor(cursorPosition.block, cursorPosition.offset)
-    }, [cursorPosition])
+        moveCursor(cursorPosition.block, cursorPosition.offset);
+    }, [cursorPosition]);
 
-    // // focus on end of text or beginning
-    // useEffect(() => {
-    //     if (blockRef.current !== null) {
-    //         const endPosition = blockRef.current.innerText.length - 1;
-    //         if (endPosition > 0 && !(focusId - previousFocusId.current === 1)) {
-    //             moveCursorToEnd(blockRef.current);
-    //         }
-    //         blockRef.current?.focus();
-    //     }
-    // }, [focusId, editorText, newBlockCreated]);
 
-    // //preserve selection when element is contenteditable again
-    // useEffect(() => {
-    //     if (selection) {
-    //         selection.addRange(selection.getRangeAt(0));
-    //     }
-    // }, [selectionModeOn, selection]);
 
     return (
         <>
@@ -248,20 +231,6 @@ export default function Editor(): JSX.Element {
                 >
                     {t.value}
                 </CustomElement>
-                // <span
-                //     tabIndex={1}
-                //     ref={focusId === t.displayIndex ? blockRef : undefined}
-                //     className="editor"
-                //     key={t.id}
-                //     onKeyDown={(e) => handleKeyDown(e, t)}
-                //     onKeyUp={(e) => handleKeyUp(e, t)}
-                //     onMouseDown={() => mouseDownHandler()}
-                //     onMouseUp={() => mouseUpHandler()}
-                //     contentEditable={!selectionModeOn}
-                //     suppressContentEditableWarning={true}
-                // >
-                //     {`${lookUp[t.type].open}${t.value}${lookUp[t.type].close}`}
-                // </span>
             ))}
         </>
     );
